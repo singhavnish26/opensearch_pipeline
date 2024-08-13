@@ -2,14 +2,24 @@ import datetime
 import requests
 import json
 import urllib3
+import configparser
 from opensearchpy import OpenSearch, exceptions
 
+config = configparser.ConfigParser()
+config.read('credentials.ini')
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Print the start time of the script
 print(f"Script started at: {datetime.datetime.now()}")
 
-MDMadd = "https://zonos.dvc.engrid.in/zonos-api"
-user = "sppl_admin"
-password = "$ppli-@dm1n"
+MDMadd = config['API']['MDM_add']
+user = config['API']['username']
+password = config['API']['password']
+OSS_add = config['OSS']['OSS_add']
+OSS_port = int(config['OSS']['OSS_port'])
+OSS_user = config['OSS']['username']
+OSS_password = config['OSS']['password']
+
 profile = "1-0:98.1.0*255"
 start_time_cur = "2024-06-30T18:29:00Z"
 to_time_cur = "2024-06-30T18:31:00Z"
@@ -18,9 +28,10 @@ to_time_prev = "2024-05-31T18:31:00Z"
 url1 = f"{MDMadd}/api/1/devices/"
 data_index = 'billing_profile_data'
 avail_index = 'billing_data_avail'
+
 client = OpenSearch(
-    hosts=[{"host": "100.102.4.11", "port": 9200}],
-    http_auth=("admin", "admin"),
+    hosts=[{"host": OSS_add, "port": OSS_port}],
+    http_auth=(OSS_user, OSS_password),
     use_ssl=True,
     verify_certs=False,
     ssl_assert_hostname=False,
