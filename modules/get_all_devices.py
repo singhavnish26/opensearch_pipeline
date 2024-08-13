@@ -25,20 +25,3 @@ def get_devices():
 devices=get_devices()
 with open("/mnt/c/Users/singh/Documents/python_rakathon/opensearch_pipeline/datasets/all_devices.json", "w") as outfile:
     json.dump(devices, outfile)
-
-
-"""def get_devices():
-    try:
-        r = requests.get(url1, auth=(user, password), verify=False)
-        r.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        print(f"Request Error: {e}")
-        return []
-    
-    device = r.json()
-    
-    del_key = ['communicationId', 'typeId', 'typeName', 'templateId', 'templateName', 'managementState', 'description', 'manufacturer', 'model', 'parentId', 'location', 'storeData', 'groupId']
-    for item in device:
-        for k in del_key:
-            item.pop(k, None)
-    return device"""
