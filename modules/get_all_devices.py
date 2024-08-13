@@ -2,14 +2,16 @@ import datetime
 import requests
 import json
 import urllib3
+import configparser
 from opensearchpy import OpenSearch, exceptions
+
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 print(f"Script started at: {datetime.datetime.now()}")
-
-MDMadd = "https://zonos.dvc.engrid.in/zonos-api"
-user = "sppl_admin"
-password = "$ppli-@dm1n"
+config.read('/mnt/c/Users/singh/Documents/python_rakathon/opensearch_pipeline/credentials.ini')
+MDMadd = config['API']['MDM_add']
+user = config['API']['username']
+password = config['API']['password']
 url = f"{MDMadd}/api/1/devices/"
 
 def get_devices():
