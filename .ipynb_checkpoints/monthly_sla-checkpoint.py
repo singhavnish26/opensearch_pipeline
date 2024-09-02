@@ -21,10 +21,10 @@ OSS_user = config['OSS']['username']
 OSS_password = config['OSS']['password']
 
 profile = "1-0:98.1.0*255"
-start_time_cur = "2024-06-30T18:29:00Z"
-to_time_cur = "2024-06-30T18:31:00Z"
-start_time_prev = "2024-05-31T18:29:00Z"
-to_time_prev = "2024-05-31T18:31:00Z"
+start_time_cur =  "2024-07-31T18:29:00Z"
+to_time_cur =  "2024-07-31T18:31:00Z"
+start_time_prev =  "2024-06-30T18:29:00Z"
+to_time_prev =  "2024-06-30T18:31:00Z"
 url1 = f"{MDMadd}/api/1/devices/"
 data_index = 'billing_profile_data'
 avail_index = 'billing_data_avail'
