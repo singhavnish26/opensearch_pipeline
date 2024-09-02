@@ -98,8 +98,6 @@ def get_diff(current_value, previous_value):
             'registerId': item['registerId'],
             'unit': item['unit'],
             'measuredAt': item['measuredAt'], 
-            'currentValue' : item['value'],#asked as per Pradeep to show current month's value
-            'previousValue' : prev_dict.get(item['device'], #previous Month's Value
             'value': item['value'] - prev_dict.get(item['device'], 0)
         }
         for item in current_value if item['device'] in prev_dict
