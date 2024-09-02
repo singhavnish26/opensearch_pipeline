@@ -5,13 +5,17 @@ import urllib3
 import configparser
 from opensearchpy import OpenSearch, exceptions
 
+#Read sensitive data from credentials.ini file
 config = configparser.ConfigParser()
 config.read('credentials.ini')
+
+#silent the error from API calls
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Print the start time of the script
 print(f"Script started at: {datetime.datetime.now()}")
 
+#Assign credentials
 MDMadd = config['API']['MDM_add']
 user = config['API']['username']
 password = config['API']['password']
@@ -20,11 +24,38 @@ OSS_port = int(config['OSS']['OSS_port'])
 OSS_user = config['OSS']['username']
 OSS_password = config['OSS']['password']
 
-profile = "1-0:98.1.0*255"
-start_time_cur =  "2024-07-31T18:29:00Z"
-to_time_cur =  "2024-07-31T18:31:00Z"
-start_time_prev =  "2024-06-30T18:29:00Z"
-to_time_prev =  "2024-06-30T18:31:00Z"
+
+
+#Option to select profile based on requirement
+
+profile_matrix={
+    "Billing": "1-0:98.1.0*255",
+    "Daily" : "1-0:99.2.0*255",
+    "BlockLoad" : "1-0:99.1.0*255",
+    "Instantaneous" : "1-0:94.91.0*255"
+}
+
+print("For Billing Profile Write \"Billing\" and hit enter")
+print("For Daily Profile Write \"Daily\" and hit enter")
+prof = input("Enter the profile you want to get data for")
+profile = profile_matrix.get("prof")
+
+
+
+#Call Fx to get date and time from User or use current month
+month_input = input("Enter the month (e.g., January) or press Enter to use the current month: ")
+year_input = input("Enter the year (e.g., 2024) or press Enter to use the current year: ")
+month = month_input if month_input else None
+year = int(year_input) if year_input else None
+time_data = generate_time_data(month, year)
+start_time_cur=time_data.get("start_time_cur")
+to_time_cur=time_data.get("to_time_cur")
+start_time_prev=time_data.get("start_time_prev")
+to_time_prev=time_data.get("to_time_prev")
+
+
+
+
 url1 = f"{MDMadd}/api/1/devices/"
 data_index = 'billing_profile_data'
 avail_index = 'billing_data_avail'
@@ -37,6 +68,41 @@ client = OpenSearch(
     ssl_assert_hostname=False,
     ssl_show_warn=False
 )
+
+
+def generate_time_data(month: str = None, year: int = None, start_hour: int = 18, start_minute: int = 29):
+    # Use current year and month if not provided
+    now = datetime.now()
+    if year is None:
+        year = now.year
+    if month is None:
+        month = now.strftime('%B')
+    
+    month = month.capitalize()
+    cur_start_date = datetime(year, list(calendar.month_name).index(month), 
+                              calendar.monthrange(year, list(calendar.month_name).index(month))[1],
+                              start_hour, start_minute)
+    
+    # Define current and previous times
+    start_time_cur = cur_start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_time_cur = (cur_start_date + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    
+    # Adjust to the previous month
+    prev_start_date = cur_start_date - timedelta(days=cur_start_date.day)
+    start_time_prev = prev_start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_time_prev = (prev_start_date + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    
+    # Construct the dictionary
+    time_data = {
+        "start_time_cur": start_time_cur,
+        "to_time_cur": end_time_cur,
+        "start_time_prev": start_time_prev,
+        "to_time_prev": end_time_prev
+        }
+    
+    return time_data
+
+
 
 def get_devices():
     try:
@@ -159,5 +225,5 @@ diff_kwh = get_diff(value_curr_kwh, value_prev_kwh)
 diff_kvah = get_diff(value_curr_kvah, value_prev_kvah)
 data_avail=check_data_availability(dev_list,value_curr_kwh)
 test_opensearch_connection()
-bulk_insert_to_opensearch(data_index, diff_kvah, diff_kwh)
-bulk_insert_to_opensearch(avail_index, data_avail)
+#bulk_insert_to_opensearch(data_index, diff_kvah, diff_kwh)
+#bulk_insert_to_opensearch(avail_index, data_avail)
