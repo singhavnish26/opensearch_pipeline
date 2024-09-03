@@ -1,4 +1,6 @@
 import datetime
+from datetime import datetime, timedelta
+import calendar
 import requests
 import json
 import urllib3
@@ -15,10 +17,17 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Print the start time of the script
 print(f"Script started at: {datetime.datetime.now()}")
 
-#Assign credentials
+#Assign MDM credentials
 MDMadd = config['API']['MDM_add']
-user = config['API']['username']
-password = config['API']['password']
+MDM_user = config['API']['MDM_username']
+MDM_password = config['API']['MDM_password']
+
+#Assign HES credentials
+HESadd = config['API']['HES_add']
+HES_user = config['API']['HES_username']
+HES_password = config['API']['HES_password']
+
+#Assign OSS credentials
 OSS_add = config['OSS']['OSS_add']
 OSS_port = int(config['OSS']['OSS_port'])
 OSS_user = config['OSS']['username']
@@ -39,35 +48,6 @@ print("For Billing Profile Write \"Billing\" and hit enter")
 print("For Daily Profile Write \"Daily\" and hit enter")
 prof = input("Enter the profile you want to get data for")
 profile = profile_matrix.get("prof")
-
-
-
-#Call Fx to get date and time from User or use current month
-month_input = input("Enter the month (e.g., January) or press Enter to use the current month: ")
-year_input = input("Enter the year (e.g., 2024) or press Enter to use the current year: ")
-month = month_input if month_input else None
-year = int(year_input) if year_input else None
-time_data = generate_time_data(month, year)
-start_time_cur=time_data.get("start_time_cur")
-to_time_cur=time_data.get("to_time_cur")
-start_time_prev=time_data.get("start_time_prev")
-to_time_prev=time_data.get("to_time_prev")
-
-
-
-
-url1 = f"{MDMadd}/api/1/devices/"
-data_index = 'billing_profile_data'
-avail_index = 'billing_data_avail'
-
-client = OpenSearch(
-    hosts=[{"host": OSS_add, "port": OSS_port}],
-    http_auth=(OSS_user, OSS_password),
-    use_ssl=True,
-    verify_certs=False,
-    ssl_assert_hostname=False,
-    ssl_show_warn=False
-)
 
 
 def generate_time_data(month: str = None, year: int = None, start_hour: int = 18, start_minute: int = 29):
@@ -101,6 +81,35 @@ def generate_time_data(month: str = None, year: int = None, start_hour: int = 18
         }
     
     return time_data
+
+
+
+#Call Fx to get date and time from User or use current month
+month_input = input("Enter the month (e.g., January) or press Enter to use the current month: ")
+year_input = input("Enter the year (e.g., 2024) or press Enter to use the current year: ")
+month = month_input if month_input else None
+year = int(year_input) if year_input else None
+time_data = generate_time_data(month, year)
+start_time_cur=time_data.get("start_time_cur")
+to_time_cur=time_data.get("to_time_cur")
+start_time_prev=time_data.get("start_time_prev")
+to_time_prev=time_data.get("to_time_prev")
+
+
+
+
+url1 = f"{MDMadd}/api/1/devices/"
+data_index = 'billing_profile_data'
+avail_index = 'billing_data_avail'
+
+client = OpenSearch(
+    hosts=[{"host": OSS_add, "port": OSS_port}],
+    http_auth=(OSS_user, OSS_password),
+    use_ssl=True,
+    verify_certs=False,
+    ssl_assert_hostname=False,
+    ssl_show_warn=False
+)
 
 
 
