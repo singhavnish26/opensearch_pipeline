@@ -33,17 +33,12 @@ while True:
 # Profile input
 profile_matrix = {
     "Billing": "1-0:98.1.0*255",
-    "Daily": "1-0:99.2.0*255",
-    "BlockLoad": "1-0:99.1.0*255",
-    "Instantaneous": "1-0:94.91.0*255"
+    "Daily": "1-0:99.2.0*255"
 }
 
 while True:
     print("\nFor Billing Profile Write 'Billing'")
-    print("For Daily Profile Write 'Daily'")
-    print("For BlockLoad Profile Write 'BlockLoad'")
-    print("For Instantaneous Profile Write 'Instantaneous'")
-    
+    print("For Daily Profile Write 'Daily'") 
     prof = input("Enter the profile you want to get data for: ")
     
     profile = profile_matrix.get(prof)
@@ -76,12 +71,15 @@ time_data = generate_time_data(month, year)
 start_time_cur, to_time_cur = time_data["start_time_cur"], time_data["to_time_cur"]
 
 # Device URL
-url1 = f"{add}/api/1/devices/"
+mdm_add=config['API']['MDM_add']
+mdm_usr=configp['API']['MDM_username']
+mdm_pass=configp['API']['MDM_password']
+url1 = f"{mdm_add}/api/1/devices/"
 
 # Get device list
 def get_devices():
     try:
-        response = requests.get(url1, auth=(user, password), verify=False)
+        response = requests.get(url1, auth=(mdm_usr, mdm_pass), verify=False)
         response.raise_for_status()
         devices = response.json()
         
