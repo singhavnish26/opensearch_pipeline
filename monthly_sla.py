@@ -36,18 +36,18 @@ OSS_password = config['OSS']['password']
 
 #Option to select profile based on requirement
 
-profile_matrix={
-    "Billing": "1-0:98.1.0*255",
-    "Daily" : "1-0:99.2.0*255",
-    "BlockLoad" : "1-0:99.1.0*255",
-    "Instantaneous" : "1-0:94.91.0*255"
-}
-
-print("For Billing Profile Write \"Billing\" and hit enter")
-print("For Daily Profile Write \"Daily\" and hit enter")
-prof = input("Enter the profile you want to get data for: ")
-profile = profile_matrix.get(prof)
-
+#profile_matrix={
+#    "Billing": "1-0:98.1.0*255",
+#    "Daily" : "1-0:99.2.0*255",
+#    "BlockLoad" : "1-0:99.1.0*255",
+#    "Instantaneous" : "1-0:94.91.0*255"
+#}
+#
+#print("For Billing Profile Write \"Billing\" and hit enter")
+#print("For Daily Profile Write \"Daily\" and hit enter")
+#prof = input("Enter the profile you want to get data for: ")
+#profile = profile_matrix.get(prof)
+profile="1-0:98.1.0*255" 
 
 
 def generate_time_data(month: str = None, year: int = None, start_hour: int = 18, start_minute: int = 29):
@@ -236,5 +236,5 @@ data_avail=check_data_availability(dev_list,value_curr_kwh)
 print("Data Extraction Complete")
 print("Starting Data ingestion into OpenSearch")
 test_opensearch_connection()
-bulk_insert_to_opensearch(data_index, diff_kvah, diff_kwh)
-bulk_insert_to_opensearch(avail_index, data_avail)
+#bulk_insert_to_opensearch(data_index, diff_kvah, diff_kwh)
+#bulk_insert_to_opensearch(avail_index, data_avail)
