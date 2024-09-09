@@ -15,6 +15,7 @@ HESadd = config['API']['HES_add']
 HES_user = config['API']['HES_username']
 HES_password = config['API']['HES_password']
 url1 = f"{MDMadd}/api/1/devices/"
+profile="1-0:98.1.0*255" 
 
 def get_devices():
     try:
@@ -80,28 +81,6 @@ def check_data_availability(dev_list, value_curr_kwh):
         })
     return result_list
 
-def generate_time_data(month: str = None, year: int = None, start_hour: int = 18, start_minute: int = 29):
-    now = datetime.now()
-    if year is None:
-        year = now.year
-    if month is None:
-        month = now.strftime('%B')
-    month = month.capitalize()
-    cur_start_date = datetime(year, list(calendar.month_name).index(month), 
-                              calendar.monthrange(year, list(calendar.month_name).index(month))[1],
-                              start_hour, start_minute)
-    start_time_cur = cur_start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end_time_cur = (cur_start_date + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    prev_start_date = cur_start_date - timedelta(days=cur_start_date.day)
-    start_time_prev = prev_start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-    end_time_prev = (prev_start_date + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    time_data = {
-        "start_time_cur": start_time_cur,
-        "to_time_cur": end_time_cur,
-        "start_time_prev": start_time_prev,
-        "to_time_prev": end_time_prev
-        }    
-    return time_data
 def write_dicts_to_csv(dict_list, file_name):
     if not dict_list:
         print("The list of dictionaries is empty.")
@@ -116,15 +95,37 @@ def write_dicts_to_csv(dict_list, file_name):
     except IOError:
         print("I/O error occurred while writing to the file.")
         
+def generate_time_data(day: int = None, month: str = None, year: int = None, start_hour: int = 18, start_minute: int = 29):
+    now = datetime.now()
+    if year is None:
+        year = now.year
+    if month is None:
+        month = now.strftime('%B')
+    month = month.capitalize()
+    if day is None:
+        day = now.day
+        month = now.strftime('%B')
+        year = now.year  
+    cur_start_date = datetime(year, list(calendar.month_name).index(month), day, start_hour, start_minute)
+    start_time_cur = cur_start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_time_cur = (cur_start_date + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    time_data = {
+        "start_time_cur": start_time_cur,
+        "to_time_cur": end_time_cur
+    }
+    return time_data
         
-profile=input("Enter the profile value: ")
+        
+#profile=input("Enter the profile value: ")
 month_input = input("Enter the month (e.g., January) or press Enter to use the current month: ")
 year_input = input("Enter the year (e.g., 2024) or press Enter to use the current year: ")
+day_input = input("Enter the day (e.g., 31) or press Enter to use today's date: ")
 month = month_input if month_input else None
 year = int(year_input) if year_input else None
-time_data = generate_time_data(month, year)
-start_time_cur=time_data.get("start_time_cur")
-to_time_cur=time_data.get("to_time_cur")
+day = int(day_input) if day_input else None
+time_data = generate_time_data(day, month, year)
+start_time_cur = time_data.get("start_time_cur")
+to_time_cur = time_data.get("to_time_cur")
 end_date_part = start_time_cur.split("T")[0]
 
 dev_list = get_devices()
