@@ -15,6 +15,7 @@ HESadd = config['API']['HES_add']
 HES_user = config['API']['HES_username']
 HES_password = config['API']['HES_password']
 url1 = f"{MDMadd}/api/1/devices/"
+profile="1-0:98.1.0*255" 
 
 def get_devices():
     try:
@@ -117,7 +118,7 @@ def write_dicts_to_csv(dict_list, file_name):
         print("I/O error occurred while writing to the file.")
         
         
-profile=input("Enter the profile value: ")
+#profile=input("Enter the profile value: ")
 month_input = input("Enter the month (e.g., January) or press Enter to use the current month: ")
 year_input = input("Enter the year (e.g., 2024) or press Enter to use the current year: ")
 month = month_input if month_input else None
