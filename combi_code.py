@@ -17,7 +17,9 @@ HES_add = config['API']['HES_add']
 HES_user = config['API']['HES_username']
 HES_password = config['API']['HES_password']
 
-print("***** Where do you want to get data from HES or MDM *****")
+
+
+print(f"{'='*60}\n***** Where do you want to get data from HES or MDM *****\n{'='*60}")
 while True:
     data_source = input("Enter the data source (HES or MDM): ").strip()
 
@@ -36,7 +38,6 @@ while True:
 
 
 def billing_time_data(month: str = None, year: int = None, start_hour: int = 18, start_minute: int = 29):
-    # Use current year and month if not provided
     now = datetime.now()
     if year is None:
         year = now.year
@@ -106,9 +107,7 @@ while True:
         print("Invalid choice. Please enter either 'billing' or 'daily'.")
         
 end_date_part = start_time_cur.split("T")[0]
-
-print("Data Will Be Extracted For Following: ")
-print("======================================")
+print(f"{'='*60}\n********Data Will Be Extracted For Following********\n{'='*60}")
 print(f"Data Source   : {data_source}")
 print(f"Profile       : {tprof}")
 print(f"Profile Value : {prof}")
