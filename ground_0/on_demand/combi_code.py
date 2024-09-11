@@ -33,6 +33,38 @@ while True:
         break
     else:
         print("Invalid choice. Please enter either 'HES' or 'MDM'.")
+        
+
+
+print(f"Would you like to export data for all devices in {data_source} or only for devices listed in the CSV file?")
+while True:
+    print(f"Press 1 to export data for all devices in {data_source}.")
+    print(f"Press 2 to export data for devices from the CSV file {data_source}.")
+    dev_type = input("Input 1 or 2 and press Enter: ")
+    if dev_type == '1':
+        break
+    elif dev_type == '2':
+        dev_file_path = input("Enter the file name like 'device_list.csv': ")
+        break
+    else:
+        print("Invalid choice. Please enter either '1' or '2'.")
+
+
+def csv_to_device(filepath):
+    dev_list = []
+    try:
+        with open(filepath, mode='r', encoding='utf-8-sig') as file:
+            csv_reader = csv.DictReader(file)
+            for row in csv_reader:
+                if row:
+                    dev_list.append(list(row.values())[0])
+    except FileNotFoundError:
+        print(f"Error: The file '{filepath}' was not found.")
+    except IOError:
+        print(f"Error: An I/O error occurred while reading the file '{filepath}'.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    return dev_list
 
 
 def billing_time_data(month: str = None, year: int = None, start_hour: int = 18, start_minute: int = 29):
@@ -114,6 +146,10 @@ print(f"Profile       : {tprof}")
 print(f"Profile Value : {prof}")
 print(f"Start Time    : {start_time_cur}")
 print(f"End Time      : {to_time_cur}")
+if dev_type == '1':
+    print(f"Devices      : All Devices in {data_source}")
+else:
+    print(f"Devices      : All Devices in the {dev_file_path} file")
 
 def get_devices(add, user, password):
     url= f"{add}/api/1/devices/"
@@ -194,11 +230,24 @@ def write_dicts_to_csv(dict_list, file_name):
     except IOError:
         print("I/O error occurred while writing to the file.")
 
+
+
+
 dev_list = get_devices(MDM_add, MDM_user, MDM_password)
+if dev_type == '2':
+    cdev = csv_to_device(dev_file_path)
+    filtered_dev_list = []
+    for item in dev_list:
+        if item.get('id') in cdev:
+            filtered_dev_list.append(item)
+    dev_list = filtered_dev_list
+
+
 write_dicts_to_csv(dev_list, f"{data_source}_Device_List_{end_date_part}.csv")
 print(f"Starting Extracting Data for Current Month {len(dev_list)} Devices at: {datetime.now()}")
-
 value_curr_kwh, value_curr_kvah = get_profile_data(add, user, password, prof, dev_list, start_time_cur, to_time_cur)
+
+
 write_dicts_to_csv(value_curr_kwh,  f"{data_source}_value_kwh_{end_date_part}.csv")
 write_dicts_to_csv(value_curr_kvah, f"{data_source}_value_kvah_{end_date_part}.csv")
 
