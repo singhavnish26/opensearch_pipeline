@@ -85,19 +85,23 @@ def billing_time_data(month: str = None, year: int = None, start_hour: int = 18,
 
 
 def daily_time_data(day: int = None, month: str = None, year: int = None, start_hour: int = 18, start_minute: int = 29):
-    now = datetime.now()
+    now = datetime.now()    
     if year is None:
         year = now.year
     if month is None:
         month = now.strftime('%B')
-    month = month.capitalize()
+    month = month.capitalize()    
     if day is None:
         day = now.day
         month = now.strftime('%B')
-        year = now.year  
+        year = now.year
+    else:
+        date_obj = datetime(year, list(calendar.month_name).index(month), day) - timedelta(days=1)
+        year, month, day = date_obj.year, date_obj.strftime('%B'), date_obj.day
     cur_start_date = datetime(year, list(calendar.month_name).index(month), day, start_hour, start_minute)
     start_time_cur = cur_start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
     end_time_cur = (cur_start_date + timedelta(minutes=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     return start_time_cur, end_time_cur
 
 
