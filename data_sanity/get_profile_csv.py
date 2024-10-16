@@ -189,6 +189,7 @@ def get_profile_data(address, username, password, profile, devlist, from_time, t
         entries = response_dict.get("entries", [])
         if entries:
             first_entry = entries[0]
+            capturedAt = first_entry.get("capturedAt", [])
             metered_value = first_entry.get("meteredValues", [])
 
             for item in metered_value:
@@ -196,11 +197,15 @@ def get_profile_data(address, username, password, profile, devlist, from_time, t
                     item["device"] = device_id
                     item["profile"] = profile
                     item["groupName"] = groupName
+                    if item["measuredAt"] is None:
+                        item["measuredAt"] = capturedAt
                     m_values_kwh.append(item)
                 elif item["registerId"] == "1-0:9.8.0*255":
                     item["device"] = device_id
                     item["profile"] = profile
                     item["groupName"] = groupName
+                    if item["measuredAt"] is None:
+                        item["measuredAt"] = capturedAt
                     m_values_kvah.append(item)
     return m_values_kwh, m_values_kvah
 
