@@ -227,13 +227,25 @@ def bulk_insert_to_opensearch(index_name, *data_dicts):
         print("Error during bulk insert:", e)
 
 dev_list = get_devices()
-print(f"Starting Extracting Data for Current Month {len(dev_list)} Devices at: {datetime.now()}")
-value_curr_kwh, value_curr_kvah = get_profile_data("1-0:98.1.0*255", dev_list, start_time_cur, to_time_cur)
-print(f"Extracted Data for Current Month {len(value_curr_kwh)} Devices at: {datetime.now()}")
+#print(f"Starting Extracting Data for Current Month {len(dev_list)} Devices at: {datetime.now()}")
+#value_curr_kwh, value_curr_kvah = get_profile_data("1-0:98.1.0*255", dev_list, start_time_cur, to_time_cur)
+#print(f"Extracted Data for Current Month {len(value_curr_kwh)} Devices at: {datetime.now()}")
+#
+#print(f"Starting Extracting Data for Previous Month {len(dev_list)} Devices at: {datetime.now()}")
+#value_prev_kwh, value_prev_kvah = get_profile_data("1-0:98.1.0*255", dev_list, start_time_prev, to_time_prev)
+#print(f"Extracted Data for Previous Month {len(value_prev_kwh)} Devices at: {datetime.now()}")
 
-print(f"Starting Extracting Data for Previous Month {len(dev_list)} Devices at: {datetime.now()}")
+
+# Printing extraction start for current month with the time range
+print(f"Starting Extracting Data for {start_time_cur} to {to_time_cur} for {len(dev_list)} Devices at: {datetime.now()}")
+value_curr_kwh, value_curr_kvah = get_profile_data("1-0:98.1.0*255", dev_list, start_time_cur, to_time_cur)
+print(f"Extracted Data for {start_time_cur} to {to_time_cur} for {len(value_curr_kwh)} Devices at: {datetime.now()}")
+
+# Printing extraction start for previous month with the time range
+print(f"Starting Extracting Data for {start_time_prev} to {to_time_prev} for {len(dev_list)} Devices at: {datetime.now()}")
 value_prev_kwh, value_prev_kvah = get_profile_data("1-0:98.1.0*255", dev_list, start_time_prev, to_time_prev)
-print(f"Extracted Data for Previous Month {len(value_prev_kwh)} Devices at: {datetime.now()}")
+print(f"Extracted Data for {start_time_prev} to {to_time_prev} for {len(value_prev_kwh)} Devices at: {datetime.now()}")
+
 
 diff_kwh = get_diff(value_curr_kwh, value_prev_kwh)
 diff_kvah = get_diff(value_curr_kvah, value_prev_kvah)
