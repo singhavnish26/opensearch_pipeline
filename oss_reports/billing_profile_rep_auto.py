@@ -6,7 +6,10 @@ from datetime import datetime, timezone, timedelta, date
 from opensearchpy import OpenSearch
 from opensearch_helper import OSWriter  
 import calendar
+import logging
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="opensearchpy")
 #Config for MDM, OpenSearch and other static data
 MDMSaddress = "http://100.102.4.10:8081/zonos-api"
 muser, msecret = "mdm_dvc_admin", "Hb1VNBRD8WLAu27B"
@@ -14,6 +17,15 @@ url = f"{MDMSaddress}/api/1/devices"
 url1 = MDMSaddress+"/api/1/devices"
 url2 = MDMSaddress+"/api/1/bulk/device-profiles/metered-data/get"
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Set to INFO to log only INFO and ERROR messages
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="billing_profile.log",  # Log file path
+    filemode="a"  # Append to the log file
+)
+logger = logging.getLogger(__name__)
 
 #Generate Timestamp for current and previous month
 def generate_time_data_auto(ref=None):
@@ -41,9 +53,12 @@ def generate_time_data_auto(ref=None):
         "msmtTime":       fmt(d1, 18, 30)
     }
 time_data = generate_time_data_auto()
-
-print(f"Extracting data for billing profile report current month{time_data['start_time_cur']} to {time_data['to_time_cur']} and previous month {time_data['start_time_prev']} to {time_data['to_time_prev']}")
-print("Fetching device list from MDM...")
+logger.info(
+    "Extracting data for billing profile report: current month %s to %s, previous month %s to %s",
+    time_data['start_time_cur'], time_data['to_time_cur'],
+    time_data['start_time_prev'], time_data['to_time_prev']
+)
+logger.info("Fetching device list from MDM...")
 
 #Get device list from MDM
 def get_devices():
@@ -65,7 +80,7 @@ def get_devices():
     return devList
 
 deviceMasterList = get_devices()
-print(f"Total devices fetched: {len(deviceMasterList)}")
+logger.info("Total devices fetched: %d", len(deviceMasterList))
 
 devicesFiltered = []
 for item in deviceMasterList:
@@ -75,7 +90,7 @@ for item in deviceMasterList:
             if w.lower() not in {"prepaid", "postpaid"}
         )
         devicesFiltered.append({"deviceId": item['id'], "groupName": groupName})
-print(f"Total installed devices: {len(devicesFiltered)}")
+logger.info("Total installed devices: %d", len(devicesFiltered))
 
 #Get billing profile data from MDM
 def get_billing_profile(fromTime, toTime, profile):
@@ -113,16 +128,16 @@ def get_billing_profile(fromTime, toTime, profile):
                     r.raise_for_status()
                     notOver = False
                 except requests.exceptions.HTTPError as errh:
-                    print("HTTP Error:", errh)
+                    logger.error("HTTP Error: %s", errh)
                     continue
                 except requests.exceptions.ConnectionError as errc:
-                    print("Connection Error:", errc)
+                    logger.error("Connection Error: %s", errc)
                     continue
                 except requests.exceptions.Timeout as errt:
-                    print("Timeout Error:", errt)
+                    logger.error("Timeout Error: %s", errt)
                     continue
                 except requests.exceptions.RequestException as err:
-                    print("Other Error:", err)
+                    logger.error("Other Error: %s", err)
                     continue
 
             returnJSON = json.loads(r.content.decode('utf-8'))
@@ -151,7 +166,7 @@ def get_billing_profile(fromTime, toTime, profile):
             postData = []
             batchDeviceList = []
             batchGroupList = []
-            print("done batch", count)
+            logger.info("Completed batch %d", count)
 
         count += 1
     data_avail = []
@@ -220,6 +235,11 @@ writer = OSWriter(client)
 index_name1 = "billing_profile_data-" + datetime.now().strftime("%y-%m")
 index_name2 = "billing_data_avail-" + datetime.now().strftime("%y-%m")
 
+logger.info("Pushing data to OpenSearch index: %s", index_name1)
 writer.push(index_name=index_name1, docs=diff_kwh, id_field="deviceId")
 writer.push(index_name=index_name1, docs=diff_kvah, id_field="deviceId")
+logger.info("Pushed billing profile data to index %s", index_name1)
+
+logger.info("Pushing availability data to OpenSearch index: %s", index_name2)
 writer.push(index_name=index_name2, docs=data_avail_curr, id_field="deviceId")
+logger.info("Pushed availability data to index %s", index_name2)

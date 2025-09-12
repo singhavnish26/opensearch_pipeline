@@ -2,9 +2,21 @@ import time
 import json
 import urllib3
 import requests
+import logging
 from datetime import datetime
 from opensearchpy import OpenSearch
 from opensearch_helper import OSWriter  
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="opensearchpy")
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG, 
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="device_status.log",  # Log file path
+    filemode="a"  
+)
+logger = logging.getLogger(__name__)
 
 
 # Configuration
@@ -18,15 +30,18 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #Fetch device status from MDM
 while True:
     try:
+        logger.debug("Sending request to MDM API: %s", url)
         r = requests.get(url, verify=False, auth=(muser, msecret))
         r.raise_for_status()
+        logger.info("Successfully fetched data from MDM API")
         break
     except requests.exceptions.RequestException as e:
-        print("API error:", e)
+        logger.error("API error: %s", e)
         time.sleep(5)
         continue
 
 returnJSON = json.loads(r.content.decode("utf-8"))
+logger.debug("Received JSON response: %s", returnJSON)
 
 dev_list = []
 for item in returnJSON:
@@ -46,16 +61,20 @@ for item in returnJSON:
         "InstalledState": item["inventoryState"],
         "@timestamp": datetime.utcnow().isoformat()
     })
+logger.info("Processed %d devices", len(dev_list))
 
 
 client = OpenSearch(
     hosts=[{"host": "localhost", "port": 9200, "scheme": "https"}],
-    http_auth=("admin", "admin"),  # or pull from env/secrets
-    use_ssl=False,                 # True if your node is HTTPS
-    verify_certs=False             # True + ca_certs=... if you have a real CA
+    http_auth=("admin", "admin"),  
+    use_ssl=False,                 
+    verify_certs=False             
 )
-writer = OSWriter(client)
+logger.debug("OpenSearch client initialized")
 
+writer = OSWriter(client)
 index_name = "device-status" + datetime.now().strftime("%y-%m")
+logger.debug("Index name: %s", index_name)
+
 writer.push(index_name=index_name, docs=dev_list, id_field="deviceId")
-print(f"OK: pushed {len(dev_list)} docs into {index_name}")
+logger.info("OK: pushed %d docs into %s", len(dev_list), index_name)

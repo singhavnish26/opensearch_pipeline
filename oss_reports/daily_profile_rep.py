@@ -2,9 +2,23 @@ import time
 import json
 import urllib3
 import requests
+import logging
+import warnings  # Import warnings module
 from datetime import datetime, timezone, timedelta
 from opensearchpy import OpenSearch
 from opensearch_helper import OSWriter  
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="opensearchpy")
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Set to INFO to log only INFO and ERROR messages
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="daily_profile.log",  # Log file path
+    filemode="a"  # Append to the log file
+)
+logger = logging.getLogger(__name__)
+
 # Configuration
 MDMSaddress = "http://100.102.4.10:8081/zonos-api"
 muser, msecret = "mdm_dvc_admin", "Hb1VNBRD8WLAu27B"
@@ -22,22 +36,35 @@ client = OpenSearch(
 )
 writer = OSWriter(client)
 
+# Suppress the specific UserWarning about insecure SSL connections
+warnings.filterwarnings(
+    "ignore",
+    message="Connecting to https://localhost:9200 using SSL with verify_certs=False is insecure"
+)
+
 def get_devices():
     notOver = True
     while notOver:
         try:
+            logger.debug("Sending request to MDM API: %s", url1)
             r = requests.get(url1, verify=False, auth=(muser, msecret))
             r.raise_for_status()
+            logger.info("Successfully fetched device data from MDM API")
             notOver = False
         except requests.exceptions.HTTPError as errh:
+            logger.error("HTTP Error: %s", errh)
             continue
         except requests.exceptions.ConnectionError as errc:
+            logger.error("Connection Error: %s", errc)
             continue
         except requests.exceptions.Timeout as errt:
+            logger.error("Timeout Error: %s", errt)
             continue
         except requests.exceptions.RequestException as err:
+            logger.error("Other Error: %s", err)
             continue
     devList = json.loads(r.content.decode('utf-8'))
+#    logger.debug("Received device list: %s", devList)
     return devList
 
 deviceMasterList = get_devices()
@@ -87,23 +114,26 @@ for idx, deviceId in enumerate(deviceList):
         notOver = True
         while notOver:
             try:
+                logger.debug("Sending batch request to MDM API: %s", url2)
                 r = requests.post(url2, json=postData, verify=False, auth=(muser, msecret))
                 r.raise_for_status()
+                logger.info("Successfully fetched batch data from MDM API")
                 notOver = False
             except requests.exceptions.HTTPError as errh:
-                print("HTTP Error:", errh)
+                logger.error("HTTP Error: %s", errh)
                 continue
             except requests.exceptions.ConnectionError as errc:
-                print("Connection Error:", errc)
+                logger.error("Connection Error: %s", errc)
                 continue
             except requests.exceptions.Timeout as errt:
-                print("Timeout Error:", errt)
+                logger.error("Timeout Error: %s", errt)
                 continue
             except requests.exceptions.RequestException as err:
-                print("Other Error:", err)
+                logger.error("Other Error: %s", err)
                 continue
 
         returnJSON = json.loads(r.content.decode('utf-8'))
+        logger.debug("Received batch JSON response: %s", returnJSON)
 
         # Map returned entries back to the batch device/group lists by position
         j = 0
@@ -129,7 +159,7 @@ for idx, deviceId in enumerate(deviceList):
         postData = []
         batchDeviceList = []
         batchGroupList = []
-        print("done batch", count)
+        logger.info("Completed batch %d", count)
 
     count += 1
 data_avail = []
@@ -150,7 +180,11 @@ for item in devicesFiltered:
 index1 = "dp_data-" + datetime.now().strftime("%y-%m")
 index2 = "dp_avail-" + datetime.now().strftime("%y-%m")
 
+logger.info("Pushing data to OpenSearch index: %s", index1)
 writer.push(index_name=index1, docs=data_dictionary, id_field="deviceId")
+logger.info("Pushed %d documents to index %s", len(data_dictionary), index1)
 
+logger.info("Pushing availability data to OpenSearch index: %s", index2)
 writer.push(index_name=index2, docs=data_avail, id_field="deviceId")
+logger.info("Pushed %d documents to index %s", len(data_avail), index2)
 
