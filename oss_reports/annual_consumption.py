@@ -8,6 +8,7 @@ from opensearch_helper import OSWriter
 import calendar
 import logging
 from collections import defaultdict
+import warnings
 
 
 warnings.filterwarnings("ignore", category=UserWarning, module="opensearchpy")
@@ -85,10 +86,10 @@ for item in deviceMasterList:
         )
         devicesFiltered.append({"deviceId": item['id'], "groupName": groupName})
 logging.info("Total installed devices: %d", len(devicesFiltered))
-
+devicesFiltered = devicesFiltered[:100]
 def get_daily_profile(fromTime, toTime, profile):
     logging.info("Fetching daily profile data from %s to %s for profile %s...", fromTime, toTime, profile)
-    batchSize = 2000
+    batchSize = 500
     count = 1
     postData = []
     batchDeviceList = []
@@ -182,6 +183,8 @@ def get_consumption_per_device(devices, data):
     logging.info("Consumption calculation completed.")
     return result
 
+
+index = "annual_consumption-"+ datetime.now().strftime("%y-%m")
 logging.info("Starting data processing...")
 dp_data = get_daily_profile(fromTime, toTime, profile)
 dp_data_kwh = [d for d in dp_data if d['registerId'] == "1-0:1.8.0*255"]
@@ -191,6 +194,11 @@ result_kvah = get_consumption_per_device(devicesFiltered, dp_data_kvah)
 merged_result = result_kwh + result_kvah
 merged_result.sort(key=lambda x: (x['deviceId'], x['registerId']))
 logging.info("Pushing data to OpenSearch...")
-writer.push(index_name=index, docs=merged_result, id_field="deviceId")
-logging.info("Data processing and push to OpenSearch completed.")
+writer.push(index_name=index, docs=merged_result)
+#import pandas as pd
+#df = pd.DataFrame(merged_result)
+#df.to_csv('annual_consumption.csv', index=False)
+logging.info("Data processing of %d records and push to OpenSearch completed.", len(merged_result))
+
+
 
