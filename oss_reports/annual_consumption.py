@@ -86,10 +86,10 @@ for item in deviceMasterList:
         )
         devicesFiltered.append({"deviceId": item['id'], "groupName": groupName})
 logging.info("Total installed devices: %d", len(devicesFiltered))
-devicesFiltered = devicesFiltered[:100]
+#devicesFiltered = devicesFiltered[:100] Added for testing only
 def get_daily_profile(fromTime, toTime, profile):
     logging.info("Fetching daily profile data from %s to %s for profile %s...", fromTime, toTime, profile)
-    batchSize = 500
+    batchSize = 1000
     count = 1
     postData = []
     batchDeviceList = []
