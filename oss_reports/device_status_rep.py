@@ -73,7 +73,7 @@ client = OpenSearch(
 logger.debug("OpenSearch client initialized")
 
 writer = OSWriter(client)
-index_name = "device-status" + datetime.now().strftime("%y-%m")
+index_name = "device-" + datetime.now().strftime("%y-%m")
 logger.debug("Index name: %s", index_name)
 
 writer.push(index_name=index_name, docs=dev_list, id_field="deviceId")
