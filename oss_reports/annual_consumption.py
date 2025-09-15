@@ -41,8 +41,13 @@ warnings.filterwarnings(
     message="Connecting to https://localhost:9200 using SSL with verify_certs=False is insecure"
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# Configure logging to log to a file
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="annual_consumption.log",  # Log file path
+    filemode="a"  # Append to the log file
+)
 
 def get_devices():
     logging.info("Fetching devices from MDMS...")
