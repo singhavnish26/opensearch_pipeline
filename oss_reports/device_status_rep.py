@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import time
 import json
 import urllib3
@@ -27,6 +29,54 @@ threshold = 172800  # 48 hours
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+# Mapping of group names to states
+group_to_state = {
+        "Bokaro": "Jharkhand",
+        "Chandrapura": "Jharkhand",
+        "Durgapur": "West Bengal",
+        "Koderma": "Jharkhand",
+        "Mejia": "West Bengal",
+        "Panchet": "Jharkhand",
+        "Raghunathpur": "West Bengal"
+    }
+
+
+#Function to split group and determine state and consumer type
+def split_group(group):
+    lstring = group.split()
+    #state = None  # Ensure state is always defined
+
+    #Finding Consumer type
+    if "domestic" in group.lower():
+        consumerType = "Domestic"
+    elif "commercial" in group.lower():
+        consumerType = "Commercial" 
+    else:
+        consumerType = "Unknown"
+
+    #Finding Pay Type
+    if "prepaid" in group.lower():
+        payType = "Prepaid"
+    elif "postpaid" in group.lower():
+        payType = "Postpaid"
+    else:
+        payType = "Unknown"
+    #Finding State
+    if lstring[0] == "Maithon" or lstring[0] == "Maithon/GOMDs":
+        if "JH" in lstring:
+            state = "Jharkhand"
+        elif "WB" in lstring:
+            state = "West Bengal"
+        else:
+            state = None  # State remains None if neither JH nor WB is found
+    else:
+        state = group_to_state.get(lstring[0])
+        
+    items_to_remove = ["Commercial", "Domestic", "Prepaid", "Postpaid", "JH", "WB", "prepaid", "postpaid", "domestic", "commercial"]
+    group_name = ' '.join([word for word in lstring if word not in items_to_remove])
+    result = {"Group": group_name, "State": state, "ConsumerType": consumerType, "PayType": payType}
+    return result
+
 #Fetch device status from MDM
 while True:
     try:
@@ -45,22 +95,21 @@ logger.debug("Received JSON response: %s", returnJSON)
 
 dev_list = []
 for item in returnJSON:
-    payType = "Prepaid" if "prepaid" in item["groupName"].lower() else "Postpaid"
+    result = split_group(item["groupName"])
     last_connection = item["lastConnection"] if item["lastConnection"] is not None else 0
     delta = int(time.time()) - last_connection
-    group = " ".join(w for w in item["groupName"].split() if w.lower() not in {"prepaid", "postpaid"})
-
     dev_list.append({
         "deviceId": item["id"],
-        "group": group,
-        "lastConnect": last_connection,
-        "ingestTime": int(time.time()),
-        "deltaTime": delta,
+        "group": result["Group"],
+        "state": result["State"],
+        "consumerType": result["ConsumerType"],
+        "payType": result["PayType"],
+        "lastConnection": item["lastConnection"],
         "status": "Online" if delta < threshold else "Offline",
-        "payType": payType,
+        "deltaTime": delta,
         "InstalledState": item["inventoryState"],
-        "@timestamp": datetime.utcnow().isoformat()
-    })
+        "ingestTime": int(time.time()),
+        "@timestamp": datetime.utcnow().isoformat()})
 logger.info("Processed %d devices", len(dev_list))
 
 
