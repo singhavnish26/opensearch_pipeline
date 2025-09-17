@@ -7,16 +7,16 @@ import requests
 import logging
 from datetime import datetime
 from opensearchpy import OpenSearch
-from opensearch_helper import OSWriter  
+from opensearch_helper import OSWriter
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="opensearchpy")
 
-# Configure logging
+# Configure logging.
 logging.basicConfig(
-    level=logging.DEBUG, 
+    level=logging.INFO,  # Set to INFO to log only INFO and ERROR messages
     format="%(asctime)s - %(levelname)s - %(message)s",
     filename="device_status.log",  # Log file path
-    filemode="a"  
+    filemode="a"
 )
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def split_group(group):
     if "domestic" in group.lower():
         consumerType = "Domestic"
     elif "commercial" in group.lower():
-        consumerType = "Commercial" 
+        consumerType = "Commercial"
     else:
         consumerType = "Unknown"
 
@@ -71,7 +71,7 @@ def split_group(group):
             state = None  # State remains None if neither JH nor WB is found
     else:
         state = group_to_state.get(lstring[0])
-        
+
     items_to_remove = ["Commercial", "Domestic", "Prepaid", "Postpaid", "JH", "WB", "prepaid", "postpaid", "domestic", "commercial"]
     group_name = ' '.join([word for word in lstring if word not in items_to_remove])
     result = {"Group": group_name, "State": state, "ConsumerType": consumerType, "PayType": payType}
@@ -80,7 +80,6 @@ def split_group(group):
 #Fetch device status from MDM
 while True:
     try:
-        logger.debug("Sending request to MDM API: %s", url)
         r = requests.get(url, verify=False, auth=(muser, msecret))
         r.raise_for_status()
         logger.info("Successfully fetched data from MDM API")
@@ -91,7 +90,6 @@ while True:
         continue
 
 returnJSON = json.loads(r.content.decode("utf-8"))
-logger.debug("Received JSON response: %s", returnJSON)
 
 dev_list = []
 for item in returnJSON:
@@ -115,14 +113,16 @@ logger.info("Processed %d devices", len(dev_list))
 
 client = OpenSearch(
     hosts=[{"host": "localhost", "port": 9200, "scheme": "https"}],
-    http_auth=("admin", "admin"),  
-    use_ssl=False,                 
-    verify_certs=False             
+    http_auth=("admin", "admin"),
+    use_ssl=False,
+    verify_certs=False
 )
-logger.debug("OpenSearch client initialized")
 
 writer = OSWriter(client)
 index_name = "device-" + datetime.now().strftime("%y-%m")
+
+writer.push(index_name=index_name, docs=dev_list, id_field="deviceId")
+logger.info("OK: pushed %d docs into %s", len(dev_list), index_name)
 logger.debug("Index name: %s", index_name)
 
 writer.push(index_name=index_name, docs=dev_list, id_field="deviceId")
