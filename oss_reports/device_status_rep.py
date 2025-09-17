@@ -102,11 +102,10 @@ for item in returnJSON:
         "state": result["State"],
         "consumerType": result["ConsumerType"],
         "payType": result["PayType"],
-        "lastConnection": item["lastConnection"],
+        "lastConnection": 0 if item["lastConnection"] in (None, "None") else int(item["lastConnection"]),
         "status": "Online" if delta < threshold else "Offline",
         "deltaTime": delta,
         "InstalledState": item["inventoryState"],
-        "ingestTime": int(time.time()),
         "@timestamp": datetime.utcnow().isoformat()})
 logger.info("Processed %d devices", len(dev_list))
 
