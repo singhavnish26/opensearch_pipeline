@@ -130,6 +130,6 @@ client = OpenSearch(
 writer = OSWriter(client)
 index_name = "device-" + datetime.now().strftime("%y-%m")
 
-writer = OSWriter(client)
-index_name = "device-" + datetime.now().strftime("%y-%m")
+logger.info("Pushing data to OpenSearch index: %s", index_name)
 writer.push(index_name=index_name, docs=dev_list, id_field="deviceId", type_overrides=type_overrides)
+logger.info("Successfully pushed %d documents to OpenSearch index: %s", len(dev_list), index_name)
