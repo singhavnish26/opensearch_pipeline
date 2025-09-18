@@ -76,7 +76,7 @@ def split_group(group):
     group_name = ' '.join([word for word in lstring if word not in items_to_remove])
     result = {"Group": group_name, "State": state, "ConsumerType": consumerType, "PayType": payType}
     return result
-
+logger.info("Data Pull from MDM Initiated.")
 #Fetch device status from MDM
 while True:
     try:
@@ -94,6 +94,7 @@ returnJSON = json.loads(r.content.decode("utf-8"))
 dev_list = []
 for item in returnJSON:
     result = split_group(item["groupName"])
+    # Handle lastConnection safely (epoch seconds)
     last_connection = item["lastConnection"] if item["lastConnection"] is not None else 0
     delta = int(time.time()) - last_connection
     dev_list.append({
@@ -102,12 +103,21 @@ for item in returnJSON:
         "state": result["State"],
         "consumerType": result["ConsumerType"],
         "payType": result["PayType"],
-        "lastConnection": 0 if item["lastConnection"] in (None, "None") else int(item["lastConnection"]),
-        "status": "Online" if delta < threshold else "Offline",
+        "lastConnection": last_connection,   # keep as epoch seconds
+        "status": "Online" if delta < threshold and last_connection > 0 else "Offline",
         "deltaTime": delta,
         "InstalledState": item["inventoryState"],
-        "@timestamp": datetime.utcnow().isoformat()})
+        "@timestamp": datetime.utcnow().isoformat(),
+        "ingestTime": int(time.time())
+    })
+
 logger.info("Processed %d devices", len(dev_list))
+
+type_overrides = {
+    "lastConnection": {"type": "date", "format": "epoch_second"},
+    "deltaTime": {"type": "long"},
+    "ingestTime": {"type": "date", "format": "epoch_second"}
+}
 
 
 client = OpenSearch(
@@ -120,9 +130,6 @@ client = OpenSearch(
 writer = OSWriter(client)
 index_name = "device-" + datetime.now().strftime("%y-%m")
 
-writer.push(index_name=index_name, docs=dev_list, id_field="deviceId")
-logger.info("OK: pushed %d docs into %s", len(dev_list), index_name)
-logger.debug("Index name: %s", index_name)
-
-writer.push(index_name=index_name, docs=dev_list, id_field="deviceId")
-logger.info("OK: pushed %d docs into %s", len(dev_list), index_name)
+writer = OSWriter(client)
+index_name = "device-" + datetime.now().strftime("%y-%m")
+writer.push(index_name=index_name, docs=dev_list, id_field="deviceId", type_overrides=type_overrides)
