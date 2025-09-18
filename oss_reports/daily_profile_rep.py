@@ -1,90 +1,128 @@
 #!/usr/bin/env python3
-
 import time
 import json
 import urllib3
 import requests
 import logging
-import warnings  # Import warnings module
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from opensearchpy import OpenSearch
-from opensearch_helper import OSWriter  
+from opensearch_helper import OSWriter
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="opensearchpy")
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,  # Set to INFO to log only INFO and ERROR messages
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    filename="daily_profile.log",  # Log file path
-    filemode="a"  # Append to the log file
+    filename="daily_profile_report.log",
+    filemode="a"
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
 MDMSaddress = "http://100.102.4.10:8081/zonos-api"
 muser, msecret = "mdm_dvc_admin", "Hb1VNBRD8WLAu27B"
 url = f"{MDMSaddress}/api/1/devices"
 url1 = MDMSaddress+"/api/1/devices"
 url2 = MDMSaddress+"/api/1/bulk/device-profiles/metered-data/get"
-threshold = 172800  # 48 hours
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 # Opensearch details
 client = OpenSearch(
     hosts=[{"host": "localhost", "port": 9200, "scheme": "https"}],
-    http_auth=("admin", "admin"),  # or pull from env/secrets
-    use_ssl=False,                 # True if your node is HTTPS
-    verify_certs=False             # True + ca_certs=... if you have a real CA
+    http_auth=("admin", "admin"),
+    use_ssl=False,
+    verify_certs=False
 )
 writer = OSWriter(client)
 
-# Suppress the specific UserWarning about insecure SSL connections
-warnings.filterwarnings(
-    "ignore",
-    message="Connecting to https://localhost:9200 using SSL with verify_certs=False is insecure"
-)
+logger.info("Initialized OpenSearch client.")
+
+group_to_state = {
+    "Bokaro": "Jharkhand",
+    "Chandrapura": "Jharkhand",
+    "Durgapur": "West Bengal",
+    "Koderma": "Jharkhand",
+    "Mejia": "West Bengal",
+    "Panchet": "Jharkhand",
+    "Raghunathpur": "West Bengal"
+}
+
+def split_group(group):
+    logger.info("Splitting group: %s", group)
+    lstring = group.split()
+    # Finding Consumer type
+    if "domestic" in group.lower():
+        consumerType = "Domestic"
+    elif "commercial" in group.lower():
+        consumerType = "Commercial"
+    else:
+        consumerType = "Unknown"
+
+    # Finding Pay Type
+    if "prepaid" in group.lower():
+        payType = "Prepaid"
+    elif "postpaid" in group.lower():
+        payType = "Postpaid"
+    else:
+        payType = "Unknown"
+
+    # Finding State
+    if lstring[0] == "Maithon" or lstring[0] == "Maithon/GOMDs":
+        if "JH" in lstring:
+            state = "Jharkhand"
+        elif "WB" in lstring:
+            state = "West Bengal"
+        else:
+            state = None
+    else:
+        state = group_to_state.get(lstring[0])
+
+    items_to_remove = ["Commercial", "Domestic", "Prepaid", "Postpaid", "JH", "WB", "prepaid", "postpaid", "domestic", "commercial"]
+    group_name = ' '.join([word for word in lstring if word not in items_to_remove])
+    result = {"groupName": group_name, "state": state, "consumerType": consumerType, "payType": payType}
+    logger.info("Split result: %s", result)
+    return result
 
 def get_devices():
+    logger.info("Fetching devices from MDM API.")
     notOver = True
     while notOver:
         try:
-            logger.debug("Sending request to MDM API: %s", url1)
             r = requests.get(url1, verify=False, auth=(muser, msecret))
             r.raise_for_status()
-            logger.info("Successfully fetched device data from MDM API")
+            logger.info("Successfully fetched devices from MDM API.")
             notOver = False
-        except requests.exceptions.HTTPError as errh:
-            logger.error("HTTP Error: %s", errh)
-            continue
-        except requests.exceptions.ConnectionError as errc:
-            logger.error("Connection Error: %s", errc)
-            continue
-        except requests.exceptions.Timeout as errt:
-            logger.error("Timeout Error: %s", errt)
-            continue
-        except requests.exceptions.RequestException as err:
-            logger.error("Other Error: %s", err)
-            continue
+        except requests.exceptions.RequestException as e:
+            logger.error("Error fetching devices: %s", e)
+            time.sleep(5)
     devList = json.loads(r.content.decode('utf-8'))
-#    logger.debug("Received device list: %s", devList)
+    logger.info("Total devices fetched: %d", len(devList))
     return devList
 
-deviceMasterList = get_devices()
+devices = get_devices()
+devices_v2 = []
+for item in devices:
+    result = split_group(item["groupName"])
+    last_connection = item["lastConnection"] if item["lastConnection"] is not None else 0
+    delta = int(time.time()) - last_connection
+    devices_v2.append({
+        "deviceId": item["id"],
+        "group": result
+    })
+logger.info("Processed devices into devices_v2.")
 
-
-devicesFiltered = []
-for item in deviceMasterList:
-    if item.get("inventoryState") == "installed":
-        groupName = " ".join(
-            w for w in item.get("groupName", "").split()
-            if w.lower() not in {"prepaid", "postpaid"}
-        )
-        devicesFiltered.append({"deviceId": item['id'], "groupName": groupName})
-
+ALLOWED_REGS = {
+    "1-0:2.8.0*255",
+    "1-0:10.8.0*255",
+    "1-0:1.8.0*255",
+    "1-0:9.8.0*255"
+}
 fromTime, toTime, msmtTime = [
     (datetime.utcnow() - timedelta(days=1)).strftime(f"%Y-%m-%dT{t}:00Z")
     for t in ("18:29", "18:31", "18:30")
 ]
+
+logger.info("Time range for data extraction: from %s to %s.", fromTime, toTime)
 
 batchSize = 2000
 count = 1
@@ -93,51 +131,34 @@ batchDeviceList = []
 batchGroupList = []
 deviceList = []
 groupList = []
-ALLOWED_REGS = {
-    "1-0:2.8.0*255",
-    "1-0:10.8.0*255",
-    "1-0:1.8.0*255",
-    "1-0:9.8.0*255"
-}
-
-for item in devicesFiltered:
+for item in devices_v2:
     deviceList.append(item['deviceId'])
-    groupList.append(item["groupName"])
-# Accumulator for all returned rows across batches
+    groupList.append(item["group"])
+logger.info("Prepared device and group lists.")
+
 data_dictionary = []
 
-# url2 already set above
 for idx, deviceId in enumerate(deviceList):
     postData.append({"device": deviceId, "profile": "1-0:99.2.0*255", "from": fromTime, "to": toTime})
     batchDeviceList.append(deviceId)
     batchGroupList.append(groupList[idx])
 
-    if (len(postData) == batchSize) or (count == len(devicesFiltered)):
+    if (len(postData) == batchSize) or (count == len(deviceList)):
+        logger.info("Processing batch %d.", count)
         notOver = True
         while notOver:
             try:
-                logger.debug("Sending batch request to MDM API: %s", url2)
                 r = requests.post(url2, json=postData, verify=False, auth=(muser, msecret))
                 r.raise_for_status()
-                logger.info("Successfully fetched batch data from MDM API")
+                logger.info("Successfully fetched batch data.")
                 notOver = False
-            except requests.exceptions.HTTPError as errh:
-                logger.error("HTTP Error: %s", errh)
-                continue
-            except requests.exceptions.ConnectionError as errc:
-                logger.error("Connection Error: %s", errc)
-                continue
-            except requests.exceptions.Timeout as errt:
-                logger.error("Timeout Error: %s", errt)
-                continue
-            except requests.exceptions.RequestException as err:
-                logger.error("Other Error: %s", err)
-                continue
+            except requests.exceptions.RequestException as e:
+                logger.error("Error fetching batch data: %s", e)
+                time.sleep(5)
 
         returnJSON = json.loads(r.content.decode('utf-8'))
-        logger.debug("Received batch JSON response: %s", returnJSON)
+        logger.info("Processing returned JSON data.")
 
-        # Map returned entries back to the batch device/group lists by position
         j = 0
         for entry in returnJSON:
             if entry.get("success"):
@@ -150,43 +171,55 @@ for idx, deviceId in enumerate(deviceList):
                         data_dictionary.append({
                             "deviceId": batchDeviceList[j],
                             "groupName": batchGroupList[j],
-                            "registerId": registerValue.get("registerId"),  # <-- fixed name
+                            "registerId": registerValue.get("registerId"),
                             "unit": registerValue.get("unit"),
                             "value": registerValue.get("value"),
                             "measuredAt": registerValue.get("measuredAt")
                         })
             j += 1
 
-        # Reset for next batch
         postData = []
         batchDeviceList = []
         batchGroupList = []
-        logger.info("Completed batch %d", count)
+        logger.info("Completed batch %d.", count)
 
     count += 1
-data_avail = []
+
+logger.info("Processing data dictionary for OpenSearch.")
+for item in data_dictionary:
+    group_dict = item["groupName"]
+    item.update({
+        "group": group_dict.get("groupName"),
+        "state": group_dict.get("state"),
+        "consumerType": group_dict.get("consumerType"),
+        "payType": group_dict.get("payType")
+    })
+    item.pop("groupName", None)
+
 dev_with_data = set()
+data_avail = []
 for item in data_dictionary:
     dev_with_data.add(item["deviceId"])
-
-for item in devicesFiltered:
+for item in devices_v2:
     isDataAvail = item["deviceId"] in dev_with_data
+    group_dict = item["group"]
     data_avail.append({
         "deviceId": item["deviceId"],
-        "groupName": item["groupName"],
-        "isDataAvail": isDataAvail,
+        "groupName": group_dict.get("groupName"),
+        "state": group_dict.get("state"),
+        "consumerType": group_dict.get("consumerType"),
+        "payType": group_dict.get("payType"),
+        "dataAvailable": isDataAvail,
         "measuredAt": msmtTime
     })
-
 
 index1 = "dp_data-" + datetime.now().strftime("%y-%m")
 index2 = "dp_avail-" + datetime.now().strftime("%y-%m")
 
 logger.info("Pushing data to OpenSearch index: %s", index1)
 writer.push(index_name=index1, docs=data_dictionary, id_field="deviceId")
-logger.info("Pushed %d documents to index %s", len(data_dictionary), index1)
+logger.info("Pushed %d documents to index %s.", len(data_dictionary), index1)
 
 logger.info("Pushing availability data to OpenSearch index: %s", index2)
 writer.push(index_name=index2, docs=data_avail, id_field="deviceId")
-logger.info("Pushed %d documents to index %s", len(data_avail), index2)
-
+logger.info("Pushed %d documents to index %s.", len(data_avail), index2)
