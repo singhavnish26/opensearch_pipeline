@@ -131,6 +131,7 @@ batchDeviceList = []
 batchGroupList = []
 deviceList = []
 groupList = []
+
 for item in devices_v2:
     deviceList.append(item['deviceId'])
     groupList.append(item["group"])
@@ -139,7 +140,12 @@ logger.info("Prepared device and group lists.")
 data_dictionary = []
 
 for idx, deviceId in enumerate(deviceList):
-    postData.append({"device": deviceId, "profile": "1-0:99.2.0*255", "from": fromTime, "to": toTime})
+    postData.append({
+        "device": deviceId,
+        "profile": "1-0:99.2.0*255",
+        "from": fromTime,
+        "to": toTime
+    })
     batchDeviceList.append(deviceId)
     batchGroupList.append(groupList[idx])
 
@@ -189,7 +195,7 @@ logger.info("Processing data dictionary for OpenSearch.")
 for item in data_dictionary:
     group_dict = item["groupName"]
     item.update({
-        "group": group_dict.get("groupName"),
+        "groupName": group_dict.get("groupName"),
         "state": group_dict.get("state"),
         "consumerType": group_dict.get("consumerType"),
         "payType": group_dict.get("payType")
@@ -217,9 +223,9 @@ index1 = "dp_data-" + datetime.now().strftime("%y-%m")
 index2 = "dp_avail-" + datetime.now().strftime("%y-%m")
 
 logger.info("Pushing data to OpenSearch index: %s", index1)
-writer.push(index_name=index1, docs=data_dictionary, id_field="deviceId")
+writer.push(index_name=index1, docs=data_dictionary, id_field=None)
 logger.info("Pushed %d documents to index %s.", len(data_dictionary), index1)
 
 logger.info("Pushing availability data to OpenSearch index: %s", index2)
-writer.push(index_name=index2, docs=data_avail, id_field="deviceId")
+writer.push(index_name=index2, docs=data_avail, id_field=None)
 logger.info("Pushed %d documents to index %s.", len(data_avail), index2)

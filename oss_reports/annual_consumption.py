@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import time
 import json
 import urllib3
@@ -89,7 +91,7 @@ logging.info("Total installed devices: %d", len(devicesFiltered))
 #devicesFiltered = devicesFiltered[:100] Added for testing only
 def get_daily_profile(fromTime, toTime, profile):
     logging.info("Fetching daily profile data from %s to %s for profile %s...", fromTime, toTime, profile)
-    batchSize = 1000
+    batchSize = 500
     count = 1
     postData = []
     batchDeviceList = []

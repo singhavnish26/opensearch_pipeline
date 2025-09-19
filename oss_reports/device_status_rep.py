@@ -99,7 +99,7 @@ for item in returnJSON:
     delta = int(time.time()) - last_connection
     dev_list.append({
         "deviceId": item["id"],
-        "group": result["Group"],
+        "groupName": result["Group"],
         "state": result["State"],
         "consumerType": result["ConsumerType"],
         "payType": result["PayType"],
@@ -128,8 +128,8 @@ client = OpenSearch(
 )
 
 writer = OSWriter(client)
-index_name = "device-" + datetime.now().strftime("%y-%m")
+index_name = "device_status-" + datetime.now().strftime("%y-%m")
 
 logger.info("Pushing data to OpenSearch index: %s", index_name)
-writer.push(index_name=index_name, docs=dev_list, id_field="deviceId", type_overrides=type_overrides)
+writer.push(index_name=index_name, docs=dev_list, id_field=None, type_overrides=type_overrides)
 logger.info("Successfully pushed %d documents to OpenSearch index: %s", len(dev_list), index_name)
