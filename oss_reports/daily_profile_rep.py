@@ -200,7 +200,7 @@ for item in data_dictionary:
         "consumerType": group_dict.get("consumerType"),
         "payType": group_dict.get("payType")
     })
-    item.pop("groupName", None)
+#    item.pop("groupName", None)
 
 dev_with_data = set()
 data_avail = []
